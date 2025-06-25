@@ -162,3 +162,5 @@ remaining_*.json
 htmlcov/
 .coverage
 .coverage.*
+
+.pypirc
