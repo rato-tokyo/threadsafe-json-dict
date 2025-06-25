@@ -142,11 +142,22 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Project specific
-threadsafe_json_dict/
+# Project specific - temporary files and data directories
 example_data/
 demo*/
 concurrent_*/
 output/
-*.json
+test_install/
 *.tmp
+
+# Test outputs and temporary JSON files (but keep example JSONs)
+test_*.json
+demo_*.json
+concurrent_*.json
+final_*.json
+remaining_*.json
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
