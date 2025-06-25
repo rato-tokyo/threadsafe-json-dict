@@ -26,17 +26,21 @@ class ThreadSafeJsonDict:
     
     def __init__(
         self, 
-        directory: Union[str, Path] = "threadsafe_json_dict",
+        directory: Union[str, Path],
         size_limit: int = 2**30  # 1GB
     ):
         """
         初期化
         
         Args:
-            directory: データ保存用ディレクトリのパス
+            directory: diskcache内部ファイル（SQLiteデータベース等）の保存先ディレクトリのパス
+                      相対パス・絶対パス両方に対応
             size_limit: キャッシュサイズの上限（バイト）
         """
-        self.directory = Path(directory)
+        # パスを絶対パスに変換（相対パス・絶対パス両方に対応）
+        self.directory = Path(directory).resolve()
+        
+        # diskcacheのCache作成（内部でSQLiteファイル等が作成される）
         self.cache = diskcache.Cache(
             str(self.directory),
             size_limit=size_limit

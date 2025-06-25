@@ -148,6 +148,7 @@ demo*/
 concurrent_*/
 output/
 test_install/
+test_cache/
 *.tmp
 
 # Test outputs and temporary JSON files (but keep example JSONs)

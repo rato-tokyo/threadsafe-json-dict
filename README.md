@@ -24,8 +24,8 @@ pip install threadsafe-json-dict
 ```python
 from threadsafe_json_dict import ThreadSafeJsonDict
 
-# 辞書を作成
-data = ThreadSafeJsonDict("my_data")
+# 辞書を作成（diskcache内部ファイル保存先ディレクトリを指定）
+data = ThreadSafeJsonDict("my_data_cache")
 
 # 辞書ライクな操作
 data["user_info"] = {
@@ -55,7 +55,7 @@ data.close()
 ```python
 from threadsafe_json_dict import ThreadSafeJsonDict
 
-with ThreadSafeJsonDict("my_data") as data:
+with ThreadSafeJsonDict("my_data_cache") as data:
     data["key1"] = "value1"
     data["key2"] = {"nested": "data"}
     data.save("output.json")
@@ -68,7 +68,7 @@ with ThreadSafeJsonDict("my_data") as data:
 from threadsafe_json_dict import ThreadSafeJsonDict
 
 # 既存のJSONファイルから読み込み
-data = ThreadSafeJsonDict("loaded_data")
+data = ThreadSafeJsonDict("loaded_data_cache")
 data.load("input.json")
 
 # データの確認
@@ -84,7 +84,7 @@ data.close()
 import threading
 from threadsafe_json_dict import ThreadSafeJsonDict
 
-data = ThreadSafeJsonDict("concurrent_data")
+data = ThreadSafeJsonDict("concurrent_data_cache")
 
 def worker_thread(thread_id):
     for i in range(10):
@@ -111,9 +111,11 @@ data.close()
 
 ### ThreadSafeJsonDict
 
-#### `__init__(directory="threadsafe_json_dict", size_limit=2**30)`
+#### `__init__(directory, size_limit=2**30)`
 
-- `directory`: データ保存用ディレクトリのパス
+- `directory`: diskcache内部ファイル（SQLiteデータベース等）の保存先ディレクトリのパス（**必須**）
+  - 相対パス・絶対パス両方に対応
+  - 指定したディレクトリに`cache.db`等のファイルが作成される
 - `size_limit`: キャッシュサイズの上限（バイト、デフォルト: 1GB）
 
 #### 辞書操作メソッド

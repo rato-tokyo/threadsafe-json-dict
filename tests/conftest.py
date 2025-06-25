@@ -4,6 +4,7 @@ pytest共通フィクスチャ
 
 import tempfile
 import pytest
+import shutil
 from pathlib import Path
 
 from threadsafe_json_dict import ThreadSafeJsonDict
@@ -17,9 +18,27 @@ def temp_dir():
 
 
 @pytest.fixture
-def dict_instance(temp_dir):
+def test_cache_dir():
+    """プロジェクト直下のテスト用キャッシュディレクトリのフィクスチャ"""
+    # プロジェクトルートディレクトリを取得
+    project_root = Path(__file__).parent.parent
+    cache_dir = project_root / "test_cache"
+    
+    # テスト前にディレクトリをクリーンアップ
+    if cache_dir.exists():
+        shutil.rmtree(cache_dir)
+    
+    yield cache_dir
+    
+    # テスト後のクリーンアップを削除（ディレクトリを残す）
+    # if cache_dir.exists():
+    #     shutil.rmtree(cache_dir)
+
+
+@pytest.fixture
+def dict_instance(test_cache_dir):
     """ThreadSafeJsonDictインスタンスのフィクスチャ"""
-    instance = ThreadSafeJsonDict(str(temp_dir / "test_dict"))
+    instance = ThreadSafeJsonDict(str(test_cache_dir))
     yield instance
     try:
         instance.close()
