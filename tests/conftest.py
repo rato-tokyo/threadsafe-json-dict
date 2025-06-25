@@ -23,13 +23,13 @@ def test_cache_dir():
     # プロジェクトルートディレクトリを取得
     project_root = Path(__file__).parent.parent
     cache_dir = project_root / "test_cache"
-    
+
     # テスト前にディレクトリをクリーンアップ
     if cache_dir.exists():
         shutil.rmtree(cache_dir)
-    
+
     yield cache_dir
-    
+
     # テスト後のクリーンアップを削除（ディレクトリを残す）
     # if cache_dir.exists():
     #     shutil.rmtree(cache_dir)
@@ -43,4 +43,4 @@ def dict_instance(test_cache_dir):
     try:
         instance.close()
     except:
-        pass  # クローズエラーは無視 
+        pass  # クローズエラーは無視
