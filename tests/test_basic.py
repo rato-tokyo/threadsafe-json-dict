@@ -196,4 +196,80 @@ class TestRepr:
         dict_instance["test"] = "value"
         repr_str = repr(dict_instance)
         assert "ThreadSafeJsonDict" in repr_str
-        assert "size=1" in repr_str 
+        assert "size=1" in repr_str
+
+class TestIteration:
+    """反復処理のテスト（問題レポート対応）"""
+    
+    def test_iteration_methods(self, dict_instance):
+        """反復処理メソッドのテスト（問題レポート対応）"""
+        # テストデータ設定
+        dict_instance["key1"] = "value1"
+        dict_instance["key2"] = {"nested": "data"}
+        dict_instance["key3"] = [1, 2, 3]
+        
+        # items()の動作確認
+        items_list = list(dict_instance.items())
+        assert len(items_list) == 3
+        items_dict = dict(items_list)
+        assert items_dict["key1"] == "value1"
+        assert items_dict["key2"] == {"nested": "data"}
+        assert items_dict["key3"] == [1, 2, 3]
+        
+        # keys()の動作確認
+        keys_list = list(dict_instance.keys())
+        assert len(keys_list) == 3
+        assert "key1" in keys_list
+        assert "key2" in keys_list
+        assert "key3" in keys_list
+        
+        # values()の動作確認
+        values_list = list(dict_instance.values())
+        assert len(values_list) == 3
+        assert "value1" in values_list
+        assert {"nested": "data"} in values_list
+        assert [1, 2, 3] in values_list
+        
+        # 直接反復処理の動作確認
+        direct_keys = []
+        for key in dict_instance:
+            direct_keys.append(key)
+        assert len(direct_keys) == 3
+        assert set(direct_keys) == {"key1", "key2", "key3"}
+
+    def test_iteration_with_enumeration(self, dict_instance):
+        """enumerate使用での反復処理テスト"""
+        dict_instance["a"] = 1
+        dict_instance["b"] = 2
+        dict_instance["c"] = 3
+        
+        # enumerate使用テスト
+        enumerated_items = list(enumerate(dict_instance))
+        assert len(enumerated_items) == 3
+        
+        # インデックスと値の確認
+        indices, keys = zip(*enumerated_items)
+        assert indices == (0, 1, 2)
+        assert set(keys) == {"a", "b", "c"}
+
+    def test_large_iteration_performance(self, dict_instance):
+        """大量データでの反復処理パフォーマンステスト"""
+        # 100件のデータを設定
+        for i in range(100):
+            dict_instance[f"key_{i}"] = f"value_{i}"
+        
+        # items()での反復処理
+        items_count = 0
+        for key, value in dict_instance.items():
+            items_count += 1
+            if items_count >= 10:  # 最初の10件のみテスト
+                break
+        assert items_count == 10
+        
+        # 直接反復処理
+        direct_count = 0
+        for key in dict_instance:
+            direct_count += 1
+            if direct_count >= 10:  # 最初の10件のみテスト
+                break
+        assert direct_count == 10 

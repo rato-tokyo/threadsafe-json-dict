@@ -157,6 +157,10 @@ class ThreadSafeJsonDict:
         """アイテムの取得"""
         return ((key, self.cache[key]) for key in self.cache.iterkeys())
     
+    def __iter__(self):
+        """直接反復処理のサポート: for key in dict"""
+        return iter(self.cache)
+    
     def clear(self) -> None:
         """すべてのデータをクリア"""
         self.cache.clear()
