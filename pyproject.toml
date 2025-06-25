@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "threadsafe-json-dict"
-version = "0.1.0"
+version = "0.1.1"
 description = "diskcacheを使用したスレッドセーフなJSON保存機能付き辞書"
 readme = "README.md"
 license = {text = "MIT"}
@@ -50,6 +50,8 @@ dev = [
 Homepage = "https://github.com/yourusername/threadsafe-json-dict"
 Repository = "https://github.com/yourusername/threadsafe-json-dict"
 Issues = "https://github.com/yourusername/threadsafe-json-dict/issues"
+"Bug Reports" = "https://github.com/yourusername/threadsafe-json-dict/issues"
+"Source" = "https://github.com/yourusername/threadsafe-json-dict"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -58,6 +60,8 @@ include = ["threadsafe_json_dict*"]
 [tool.black]
 line-length = 88
 target-version = ['py38']
+
+
 
 [tool.mypy]
 python_version = "3.8"
