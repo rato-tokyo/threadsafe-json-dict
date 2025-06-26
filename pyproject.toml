@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "threadsafe-json-dict"
 version = "0.2.0"
-description = "スレッドセーフなJSON保存機能付き辞書（自前実装）"
+description = "スレッドセーフなJSON保存機能付き辞書（Python 3.10+対応、自前実装）"
 readme = "README.md"
 license = "MIT"
 authors = [
@@ -20,8 +20,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -29,15 +27,13 @@ classifiers = [
     "Topic :: Database",
     "Topic :: System :: Archiving",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-mock>=3.10.0",
     "black>=23.0",
     "ruff>=0.1.0",
     "mypy>=1.0",
@@ -56,10 +52,10 @@ include = ["threadsafe_json_dict*"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py310']
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py310"
 line-length = 88
 
 [tool.ruff.lint]
@@ -83,7 +79,7 @@ ignore = [
 "tests/*" = ["B011"]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false

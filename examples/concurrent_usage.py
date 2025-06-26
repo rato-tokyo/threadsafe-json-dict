@@ -12,7 +12,7 @@ def demo_concurrent_access():
     """並行アクセスのデモ（スレッドセーフテスト）"""
     print("=== 並行アクセステスト ===")
 
-    with ThreadSafeJsonDict("concurrent_test") as data:
+    with ThreadSafeJsonDict("concurrent_test.json") as data:
 
         def writer_thread(thread_id: int):
             """書き込みスレッド"""
@@ -24,7 +24,8 @@ def demo_concurrent_access():
             """保存スレッド"""
             for i in range(5):
                 time.sleep(0.05)
-                data.save(f"concurrent_save_{i}.json")
+                data.set_json_file_path(f"concurrent_save_{i}.json")
+                data.save()
                 print(f"保存完了: concurrent_save_{i}.json")
 
         # 複数スレッドで並行実行
@@ -48,14 +49,15 @@ def demo_concurrent_access():
         print(f"並行アクセステスト完了。最終データ数: {len(data)}")
 
         # 最終状態を保存
-        data.save("final_concurrent_result.json")
+        data.set_json_file_path("final_concurrent_result.json")
+        data.save()
 
 
 def demo_producer_consumer():
     """プロデューサー・コンシューマーパターンのデモ"""
     print("\n=== プロデューサー・コンシューマーパターン ===")
 
-    with ThreadSafeJsonDict("producer_consumer") as queue_dict:
+    with ThreadSafeJsonDict("producer_consumer.json") as queue_dict:
 
         def producer(producer_id: int):
             """データを生成するスレッド"""
@@ -120,7 +122,8 @@ def demo_producer_consumer():
 
         # 残りのデータを保存
         if len(queue_dict) > 0:
-            queue_dict.save("remaining_items.json")
+            queue_dict.set_json_file_path("remaining_items.json")
+            queue_dict.save()
             print("未処理のアイテムを保存しました")
 
 

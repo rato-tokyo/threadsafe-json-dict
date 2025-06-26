@@ -30,7 +30,8 @@ class TestThreadSafeJsonDict:
         """
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            dict_obj = ThreadSafeJsonDict(tmpdir)
+            output_file = Path(tmpdir) / "test_output.json"
+            dict_obj = ThreadSafeJsonDict(output_file)
 
             # 1. 初期データ設定（基本的な辞書操作）
             dict_obj["company_123"] = {
@@ -129,8 +130,7 @@ class TestThreadSafeJsonDict:
             }
 
             # 9. JSONファイルに保存
-            output_file = Path(tmpdir) / "test_output.json"
-            dict_obj.save(output_file)
+            dict_obj.save()
 
             # 10. 正解JSONファイルと比較
             expected_file = (
@@ -154,8 +154,7 @@ class TestThreadSafeJsonDict:
                 f"実際値: {json.dumps(actual_data, indent=2, ensure_ascii=False)}"
             )
 
-            # リソースをクリーンアップ
-            dict_obj.close()
+            # リソースのクリーンアップは不要（自前実装）
 
     def test_load_and_modify_cycle(self):
         """
@@ -171,7 +170,8 @@ class TestThreadSafeJsonDict:
             )
 
             # 1. 新しいインスタンスで正解JSONを読み込み
-            dict_obj = ThreadSafeJsonDict(tmpdir)
+            output_file = Path(tmpdir) / "modified_output.json"
+            dict_obj = ThreadSafeJsonDict(output_file)
             dict_obj.load(expected_file)
 
             # 2. 読み込み後に変更を加える
@@ -179,8 +179,7 @@ class TestThreadSafeJsonDict:
             dict_obj["statistics"]["total_companies"] = 3
 
             # 3. 新しいファイルに保存
-            output_file = Path(tmpdir) / "modified_output.json"
-            dict_obj.save(output_file)
+            dict_obj.save()
 
             # 4. 変更が正しく反映されているか確認
             with open(output_file, encoding="utf-8") as f:
@@ -193,13 +192,12 @@ class TestThreadSafeJsonDict:
             assert modified_data["company_456"]["name"] == "サンプル株式会社"
             assert modified_data["global_config"]["system_version"] == "1.0.0"
 
-            dict_obj.close()
-
     def test_error_cases(self):
         """エラーケースのテスト"""
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            dict_obj = ThreadSafeJsonDict(tmpdir)
+            json_file = Path(tmpdir) / "test.json"
+            dict_obj = ThreadSafeJsonDict(json_file)
 
             # 存在しないキーへのアクセス
             with pytest.raises(KeyError):
@@ -213,13 +211,12 @@ class TestThreadSafeJsonDict:
             with pytest.raises(FileNotFoundError):
                 dict_obj.load("nonexistent_file.json")
 
-            dict_obj.close()
-
     def test_basic_operations(self):
         """基本的な辞書操作のテスト"""
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            dict_obj = ThreadSafeJsonDict(tmpdir)
+            json_file = Path(tmpdir) / "basic_test.json"
+            dict_obj = ThreadSafeJsonDict(json_file)
 
             # 設定と取得
             dict_obj["key1"] = "value1"
@@ -240,5 +237,3 @@ class TestThreadSafeJsonDict:
             # 削除
             del dict_obj["key1"]
             assert len(dict_obj) == 0
-
-            dict_obj.close()

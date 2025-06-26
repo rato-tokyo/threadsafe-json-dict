@@ -2,11 +2,13 @@
 ThreadSafeJsonDict - 自前実装によるJSON保存機能付き辞書クラス
 """
 
+from __future__ import annotations
+
 import copy
 import json
 import threading
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any
 
 
 class NestedListProxy:
@@ -14,7 +16,7 @@ class NestedListProxy:
     ネストしたリストの変更を追跡するプロキシクラス
     """
 
-    def __init__(self, data: list, parent: "ThreadSafeJsonDict", root_key: str):
+    def __init__(self, data: list, parent: ThreadSafeJsonDict, root_key: str):
         self._data = data
         self._parent = parent
         self._root_key = root_key
@@ -29,11 +31,9 @@ class NestedListProxy:
 
     def __setitem__(self, index: int, value: Any) -> None:
         self._data[index] = value
-        self._parent._mark_dirty()
 
     def __delitem__(self, index: int) -> None:
         del self._data[index]
-        self._parent._mark_dirty()
 
     def __len__(self) -> int:
         return len(self._data)
@@ -53,33 +53,27 @@ class NestedListProxy:
     def append(self, value: Any) -> None:
         """リストのappend()メソッド"""
         self._data.append(value)
-        self._parent._mark_dirty()
 
     def extend(self, values) -> None:
         """リストのextend()メソッド"""
         self._data.extend(values)
-        self._parent._mark_dirty()
 
     def insert(self, index: int, value: Any) -> None:
         """リストのinsert()メソッド"""
         self._data.insert(index, value)
-        self._parent._mark_dirty()
 
     def remove(self, value: Any) -> None:
         """リストのremove()メソッド"""
         self._data.remove(value)
-        self._parent._mark_dirty()
 
     def pop(self, index: int = -1) -> Any:
         """リストのpop()メソッド"""
         result = self._data.pop(index)
-        self._parent._mark_dirty()
         return result
 
     def clear(self) -> None:
         """リストのclear()メソッド"""
         self._data.clear()
-        self._parent._mark_dirty()
 
 
 class NestedDictProxy:
@@ -87,7 +81,7 @@ class NestedDictProxy:
     ネストした辞書の変更を追跡するプロキシクラス
     """
 
-    def __init__(self, data: dict, parent: "ThreadSafeJsonDict", root_key: str):
+    def __init__(self, data: dict, parent: ThreadSafeJsonDict, root_key: str):
         self._data = data
         self._parent = parent
         self._root_key = root_key
@@ -103,12 +97,10 @@ class NestedDictProxy:
     def __setitem__(self, key: str, value: Any) -> None:
         """ネストした辞書への代入"""
         self._data[key] = value
-        self._parent._mark_dirty()
 
     def __delitem__(self, key: str) -> None:
         """ネストした辞書からの削除"""
         del self._data[key]
-        self._parent._mark_dirty()
 
     def __contains__(self, key: str) -> bool:
         return key in self._data
@@ -151,10 +143,9 @@ class NestedDictProxy:
             else:
                 yield key, value
 
-    def update(self, other: Dict[str, Any]) -> None:
+    def update(self, other: dict[str, Any]) -> None:
         """辞書のupdate()メソッド"""
         self._data.update(other)
-        self._parent._mark_dirty()
 
     def pop(self, key: str, *args) -> Any:
         """辞書のpop()メソッド"""
@@ -168,14 +159,12 @@ class NestedDictProxy:
         else:
             result = self._data.pop(key, args[0])
 
-        self._parent._mark_dirty()
         return result
 
     def setdefault(self, key: str, default: Any = None) -> Any:
         """辞書のsetdefault()メソッド"""
         if key not in self._data:
             self._data[key] = default
-            self._parent._mark_dirty()
         value = self._data[key]
         if isinstance(value, dict):
             return NestedDictProxy(value, self._parent, self._root_key)
@@ -193,25 +182,21 @@ class ThreadSafeJsonDict:
     ネストした辞書・リストへの操作も正しく追跡されます。
     """
 
-    def __init__(self, directory: Union[str, Path, None] = None):
+    def __init__(self, json_file_path: str | Path):
         """
         初期化
 
         Args:
-            directory: 互換性のために残していますが、自前実装では使用しません
+            json_file_path: JSONファイルの保存先パス
         """
+        # JSONファイルパス
+        self._json_file_path = Path(json_file_path)
+
         # 内部データストレージ
-        self._data: Dict[str, Any] = {}
+        self._data: dict[str, Any] = {}
 
         # スレッドセーフティ用のロック
         self._lock = threading.RLock()
-
-        # 変更フラグ（将来の拡張用）
-        self._dirty = False
-
-    def _mark_dirty(self) -> None:
-        """変更フラグを設定"""
-        self._dirty = True
 
     def __getitem__(self, key: str) -> Any:
         """辞書ライクな読み取り: dict[key]"""
@@ -230,7 +215,6 @@ class ThreadSafeJsonDict:
         """辞書ライクな設定: dict[key] = value"""
         with self._lock:
             self._data[key] = copy.deepcopy(value)
-            self._mark_dirty()
 
     def __delitem__(self, key: str) -> None:
         """辞書ライクな削除: del dict[key]"""
@@ -238,7 +222,6 @@ class ThreadSafeJsonDict:
             if key not in self._data:
                 raise KeyError(key)
             del self._data[key]
-            self._mark_dirty()
 
     def __contains__(self, key: str) -> bool:
         """存在確認: key in dict"""
@@ -255,7 +238,7 @@ class ThreadSafeJsonDict:
         with self._lock:
             return f"ThreadSafeJsonDict({dict(self._data)})"
 
-    def _to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> dict[str, Any]:
         """
         内部データを通常の辞書として取得
         JSON保存時に使用
@@ -263,28 +246,23 @@ class ThreadSafeJsonDict:
         with self._lock:
             return copy.deepcopy(self._data)
 
-    def save(
-        self, path: Union[str, Path], indent: int = 2, ensure_ascii: bool = False
-    ) -> None:
+    def save(self, indent: int = 2, ensure_ascii: bool = False) -> None:
         """
         現在のデータをJSONファイルに保存
 
         Args:
-            path: 保存先ファイルパス
             indent: JSONインデント（可読性のため）
             ensure_ascii: ASCII文字のみで出力するか
         """
-        path = Path(path)
-
         with self._lock:
             # 内部データを取得
             data_to_save = self._to_dict()
 
             # ディレクトリが存在しない場合は作成
-            path.parent.mkdir(parents=True, exist_ok=True)
+            self._json_file_path.parent.mkdir(parents=True, exist_ok=True)
 
             # JSONファイルに保存
-            with open(path, "w", encoding="utf-8") as f:
+            with open(self._json_file_path, "w", encoding="utf-8") as f:
                 json.dump(
                     data_to_save,
                     f,
@@ -293,27 +271,24 @@ class ThreadSafeJsonDict:
                     separators=(",", ": "),
                 )
 
-        # 保存完了後に変更フラグをリセット
-        self._dirty = False
-
-    def load(self, path: Union[str, Path]) -> None:
+    def load(self, path: str | Path | None = None) -> None:
         """
         JSONファイルからデータを読み込み
 
         Args:
-            path: 読み込み元ファイルパス
+            path: 読み込み元ファイルパス（省略時は初期化時に指定したパス）
 
         Raises:
             FileNotFoundError: ファイルが存在しない場合
             ValueError: 無効なJSON形式の場合
         """
-        path = Path(path)
+        load_path = Path(path) if path is not None else self._json_file_path
 
-        if not path.exists():
-            raise FileNotFoundError(f"ファイルが見つかりません: {path}")
+        if not load_path.exists():
+            raise FileNotFoundError(f"ファイルが見つかりません: {load_path}")
 
         try:
-            with open(path, encoding="utf-8") as f:
+            with open(load_path, encoding="utf-8") as f:
                 loaded_data = json.load(f)
         except json.JSONDecodeError as e:
             raise ValueError(f"無効なJSON形式です: {e}")
@@ -326,7 +301,24 @@ class ThreadSafeJsonDict:
             else:
                 raise ValueError("JSONのルートは辞書である必要があります")
 
-        self._dirty = False
+    def set_json_file_path(self, new_path: str | Path) -> None:
+        """
+        JSONファイルパスを変更
+
+        Args:
+            new_path: 新しいJSONファイルパス
+        """
+        with self._lock:
+            self._json_file_path = Path(new_path)
+
+    def get_json_file_path(self) -> Path:
+        """
+        現在のJSONファイルパスを取得
+
+        Returns:
+            現在のJSONファイルパス
+        """
+        return self._json_file_path
 
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -379,18 +371,10 @@ class ThreadSafeJsonDict:
         """全データクリア"""
         with self._lock:
             self._data.clear()
-            self._mark_dirty()
-
-    def close(self) -> None:
-        """
-        リソースクリーンアップ（互換性のため）
-        自前実装では特に何もしません
-        """
-        pass
 
     # コンテキストマネージャー対応
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.close()
+        pass
