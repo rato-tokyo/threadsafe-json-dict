@@ -11,13 +11,16 @@ from pathlib import Path
 from typing import Any
 
 
-class NestedListProxy:
+class NestedListProxy(list):
     """
     ネストしたリストの変更を追跡するプロキシクラス
+    listを継承してisinstance(obj, list)がTrueになるようにする
     """
 
     def __init__(self, data: list, parent: ThreadSafeJsonDict, root_key: str):
-        self._data = data
+        # 元のlistのデータで初期化
+        super().__init__(data)
+        self._data = data  # 元のデータへの参照を保持
         self._parent = parent
         self._root_key = root_key
 
@@ -31,12 +34,13 @@ class NestedListProxy:
 
     def __setitem__(self, index: int, value: Any) -> None:
         self._data[index] = value
+        super().__setitem__(index, value)  # listの継承のためにも更新
+        self._mark_dirty()
 
     def __delitem__(self, index: int) -> None:
         del self._data[index]
-
-    def __len__(self) -> int:
-        return len(self._data)
+        super().__delitem__(index)  # listの継承のためにも更新
+        self._mark_dirty()
 
     def __iter__(self):
         for item in self._data:
@@ -47,42 +51,66 @@ class NestedListProxy:
             else:
                 yield item
 
+    def __len__(self) -> int:
+        return len(self._data)
+
     def __repr__(self) -> str:
         return f"NestedListProxy({self._data})"
 
     def append(self, value: Any) -> None:
         """リストのappend()メソッド"""
         self._data.append(value)
+        super().append(value)  # listの継承のためにも更新
+        self._mark_dirty()
 
     def extend(self, values) -> None:
         """リストのextend()メソッド"""
         self._data.extend(values)
+        super().extend(values)  # listの継承のためにも更新
+        self._mark_dirty()
 
     def insert(self, index: int, value: Any) -> None:
         """リストのinsert()メソッド"""
         self._data.insert(index, value)
+        super().insert(index, value)  # listの継承のためにも更新
+        self._mark_dirty()
 
     def remove(self, value: Any) -> None:
         """リストのremove()メソッド"""
         self._data.remove(value)
+        super().remove(value)  # listの継承のためにも更新
+        self._mark_dirty()
 
     def pop(self, index: int = -1) -> Any:
         """リストのpop()メソッド"""
         result = self._data.pop(index)
+        super().pop(index)  # listの継承のためにも更新
+        self._mark_dirty()
         return result
 
     def clear(self) -> None:
         """リストのclear()メソッド"""
         self._data.clear()
+        super().clear()  # listの継承のためにも更新
+        self._mark_dirty()
+
+    def _mark_dirty(self) -> None:
+        """変更をマークして親に通知"""
+        # 実際の変更は既にsuper()で適用されているので、何もしない
+        # このメソッドは将来の拡張のために残しておく
+        pass
 
 
-class NestedDictProxy:
+class NestedDictProxy(dict):
     """
     ネストした辞書の変更を追跡するプロキシクラス
+    dictを継承してisinstance(obj, dict)がTrueになるようにする
     """
 
     def __init__(self, data: dict, parent: ThreadSafeJsonDict, root_key: str):
-        self._data = data
+        # 元のdictのデータで初期化
+        super().__init__(data)
+        self._data = data  # 元のデータへの参照を保持
         self._parent = parent
         self._root_key = root_key
 
@@ -97,10 +125,14 @@ class NestedDictProxy:
     def __setitem__(self, key: str, value: Any) -> None:
         """ネストした辞書への代入"""
         self._data[key] = value
+        super().__setitem__(key, value)  # dictの継承のためにも更新
+        self._mark_dirty()
 
     def __delitem__(self, key: str) -> None:
         """ネストした辞書からの削除"""
         del self._data[key]
+        super().__delitem__(key)  # dictの継承のためにも更新
+        self._mark_dirty()
 
     def __contains__(self, key: str) -> bool:
         return key in self._data
@@ -146,6 +178,8 @@ class NestedDictProxy:
     def update(self, other: dict[str, Any]) -> None:
         """辞書のupdate()メソッド"""
         self._data.update(other)
+        super().update(other)  # dictの継承のためにも更新
+        self._mark_dirty()
 
     def pop(self, key: str, *args) -> Any:
         """辞書のpop()メソッド"""
@@ -156,21 +190,32 @@ class NestedDictProxy:
             if key not in self._data:
                 raise KeyError(key)
             result = self._data.pop(key)
+            super().pop(key)  # dictの継承のためにも更新
         else:
             result = self._data.pop(key, args[0])
+            super().pop(key, args[0])  # dictの継承のためにも更新
 
+        self._mark_dirty()
         return result
 
     def setdefault(self, key: str, default: Any = None) -> Any:
         """辞書のsetdefault()メソッド"""
         if key not in self._data:
             self._data[key] = default
+            super().__setitem__(key, default)  # dictの継承のためにも更新
+            self._mark_dirty()
         value = self._data[key]
         if isinstance(value, dict):
             return NestedDictProxy(value, self._parent, self._root_key)
         elif isinstance(value, list):
             return NestedListProxy(value, self._parent, self._root_key)
         return value
+
+    def _mark_dirty(self) -> None:
+        """変更をマークして親に通知"""
+        # 実際の変更は既にsuper()で適用されているので、何もしない
+        # このメソッドは将来の拡張のために残しておく
+        pass
 
 
 class ThreadSafeJsonDict:

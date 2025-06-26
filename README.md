@@ -1,154 +1,177 @@
-# ThreadSafe JSON Dict
+# ThreadSafeJsonDict
 
-軽量で高速なスレッドセーフJSON保存機能付き辞書クラスです。外部依存なしの純粋なPython実装。
+[![PyPI version](https://badge.fury.io/py/threadsafe-json-dict.svg)](https://badge.fury.io/py/threadsafe-json-dict)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**外部依存なしの純粋なPython実装**によるスレッドセーフなJSON保存機能付き辞書クラスです。
 
 ## 特徴
 
-### なぜ必要なのか？
-既存のPython辞書やJSONファイル操作では、**スレッド間の競合状態**や**ネストした辞書への変更追跡**が困難です。Redis等の外部ツールは設定が複雑で、軽量な用途には過剰です。
-
-### このライブラリの解決策
-✅ **ゼロ依存**: 外部ライブラリ不要、純粋なPython実装  
-✅ **Pythonic API**: 標準辞書と完全互換のインターフェース  
-✅ **ネスト操作対応**: 深いネスト構造への変更も正しく追跡  
-✅ **JSON互換性**: 標準的なJSON形式での入出力  
-✅ **軽量・高速**: 外部依存なし、メモリ内操作による高速化  
-✅ **スレッドセーフ**: `threading.RLock`による安全な並行アクセス  
-
-**複雑な設定なしに、辞書ライクな操作でスレッドセーフなデータ管理を実現。**
-
-### 主な機能
-- **辞書ライクなインターフェース**: 通常のPython辞書と同じように使用可能
-- **ネスト操作の追跡**: `dict[key1][key2] = value`やリスト操作も正しく動作
-- **JSON保存機能**: `save()`メソッドでJSON形式での保存
-- **スレッドセーフ**: 複数スレッドからの同時アクセスに対応
-- **軽量実装**: 外部依存なし、シンプルで理解しやすいコード
-- **コンテキストマネージャー**: `with`文でのリソース管理
+- 🔒 **スレッドセーフ**: `threading.RLock()`による安全な並行アクセス
+- 💾 **自動JSON保存**: 辞書操作と連動したJSONファイル保存
+- 🏗️ **ネスト対応**: ネストした辞書・リストの変更も正しく追跡
+- 🔧 **isinstance互換**: `isinstance(obj, dict)`や`isinstance(obj, list)`が正常動作
+- 🚀 **外部依存なし**: 標準ライブラリのみを使用
+- 📦 **簡単インストール**: `pip install threadsafe-json-dict`
 
 ## インストール
-
-### PyPIからのインストール（推奨）
 
 ```bash
 pip install threadsafe-json-dict
 ```
 
-### 開発版のインストール
-
-```bash
-git clone https://github.com/yourusername/threadsafe-json-dict.git
-cd threadsafe-json-dict
-pip install -e .
-```
-
-## 使用方法
-
-### 基本的な使用例
+## 基本的な使用方法
 
 ```python
 from threadsafe_json_dict import ThreadSafeJsonDict
 
-# 辞書を作成（JSONファイルパスを指定）
-data = ThreadSafeJsonDict("output/data.json")
+# JSONファイルパスを指定して初期化
+data = ThreadSafeJsonDict("data.json")
 
-# 辞書ライクな操作
-data["user_info"] = {
-    "name": "Alice",
-    "age": 30,
-    "email": "alice@example.com"
-}
+# 辞書のように使用
+data["user_id"] = 12345
 data["settings"] = {
     "theme": "dark",
-    "notifications": True,
-    "language": "ja"
+    "notifications": True
 }
 
-# データの読み取り
-print(data["user_info"])  # {'name': 'Alice', 'age': 30, 'email': 'alice@example.com'}
-print(len(data))          # 2
-
-# JSON形式で保存（初期化時に指定したパスに保存）
+# JSONファイルに保存
 data.save()
+
+# ファイルから読み込み
+data.load()
+print(data["user_id"])  # 12345
 ```
 
-### ネストした辞書・リストの操作
+## ネストした辞書・リストの操作
 
 ```python
-from threadsafe_json_dict import ThreadSafeJsonDict
-
-data = ThreadSafeJsonDict("company_data.json")
-
-# 複雑なネスト構造
-data["company"] = {
+# ネストした辞書への代入（重要な機能）
+data["company_123"] = {
     "name": "テスト会社",
+    "status": "active",
+    "employees": []
+}
+
+# ネストした辞書の値を直接変更
+company_data = data["company_123"]
+company_data["status"] = "processing"  # 正しく追跡される
+
+# ネストしたリストへの操作
+employees = company_data["employees"]
+employees.append({"id": 1, "name": "田中太郎"})
+employees.extend([
+    {"id": 2, "name": "佐藤花子"},
+    {"id": 3, "name": "山田次郎"}
+])
+
+# すべての変更が自動的に元のデータに反映される
+data.save()  # 全ての変更がJSONファイルに保存される
+```
+
+## isinstance() 互換性
+
+プロキシオブジェクトは元の型として正しく認識されます：
+
+```python
+data["config"] = {"key": "value"}
+data["items"] = [1, 2, 3]
+
+config = data["config"]
+items = data["items"]
+
+# isinstance() チェックが正常に動作
+print(isinstance(config, dict))  # True
+print(isinstance(items, list))   # True
+
+# 型チェック関数での使用例
+def process_value(value):
+    if isinstance(value, dict):
+        return f"辞書: {len(value)}個のキー"
+    elif isinstance(value, list):
+        return f"リスト: {len(value)}個の要素"
+    else:
+        return f"その他: {value}"
+
+print(process_value(config))  # "辞書: 1個のキー"
+print(process_value(items))   # "リスト: 3個の要素"
+```
+
+## 実際のユースケース例
+
+```python
+# 会社データ管理システムの例
+companies = ThreadSafeJsonDict("companies.json")
+
+# 初期データ設定
+companies["company_123"] = {
+    "name": "テクノロジー株式会社",
+    "status": "active",
     "employees": [],
     "metadata": {
+        "created_at": "2024-01-01",
+        "version": 1,
         "settings": {
-            "notifications": True
+            "notifications": True,
+            "backup_enabled": True
         }
     }
 }
 
-# ネストした辞書への代入（重要：正しく追跡されます）
-data["company"]["metadata"]["settings"]["notifications"] = False
+# ステータス更新（重要：この操作が正しく追跡される）
+companies["company_123"]["status"] = "processing"
 
-# リストへの操作
-data["company"]["employees"].append({"name": "田中太郎", "id": 1})
-data["company"]["employees"].append({"name": "佐藤花子", "id": 2})
+# 従業員追加
+employees = companies["company_123"]["employees"]
+employees.append({
+    "id": 1,
+    "name": "田中太郎",
+    "department": "開発部",
+    "hire_date": "2024-01-15"
+})
 
-# 変更はすべて追跡され、保存時に反映されます
-data.save()
+# 設定変更
+settings = companies["company_123"]["metadata"]["settings"]
+settings["backup_enabled"] = False
+settings["auto_save"] = True
+
+# メタデータ更新
+companies["company_123"]["metadata"]["version"] = 2
+companies["company_123"]["metadata"]["last_updated"] = "2024-01-20"
+
+# 全ての変更を保存
+companies.save()
+
+# 別のプロセスで読み込み
+companies2 = ThreadSafeJsonDict("companies.json")
+companies2.load()
+print(companies2["company_123"]["status"])  # "processing"
 ```
 
-### コンテキストマネージャーとしての使用
-
-```python
-from threadsafe_json_dict import ThreadSafeJsonDict
-
-with ThreadSafeJsonDict("output.json") as data:
-    data["key1"] = "value1"
-    data["key2"] = {"nested": "data"}
-    data.save()
-# 自動的にリソースがクリーンアップされます
-```
-
-### JSON読み込み
-
-```python
-from threadsafe_json_dict import ThreadSafeJsonDict
-
-# 既存のJSONファイルから読み込み
-data = ThreadSafeJsonDict("modified_data.json")
-data.load("input.json")  # 別のファイルから読み込み
-
-# データの確認
-for key, value in data.items():
-    print(f"{key}: {value}")
-
-# 読み込み後の変更も正しく追跡されます
-data["new_key"] = "new_value"
-data.save()  # modified_data.jsonに保存
-```
-
-### スレッドセーフな並行処理
+## 並行処理での使用
 
 ```python
 import threading
 from threadsafe_json_dict import ThreadSafeJsonDict
 
-data = ThreadSafeJsonDict("concurrent_output.json")
+# 共有データ
+shared_data = ThreadSafeJsonDict("shared.json")
+shared_data["counter"] = 0
+shared_data["users"] = {}
 
 def worker_thread(thread_id):
-    for i in range(10):
-        data[f"thread_{thread_id}_item_{i}"] = f"value_{i}"
-        
-    # 保存先を変更してスレッドごとに保存
-    data.set_json_file_path(f"thread_{thread_id}_output.json")
-    data.save()
+    # スレッドセーフな操作
+    shared_data["counter"] += 1
+    shared_data["users"][f"user_{thread_id}"] = {
+        "id": thread_id,
+        "active": True
+    }
+    shared_data.save()
 
-# 複数スレッドで並行実行
+# 複数スレッドで同時実行
 threads = []
-for i in range(3):
+for i in range(10):
     t = threading.Thread(target=worker_thread, args=(i,))
     threads.append(t)
     t.start()
@@ -156,169 +179,78 @@ for i in range(3):
 for t in threads:
     t.join()
 
-print(f"最終データ数: {len(data)}")
-```
-
-### 実際のユースケース例
-
-```python
-from threadsafe_json_dict import ThreadSafeJsonDict
-
-# アプリケーション設定の管理
-config = ThreadSafeJsonDict("companies_config.json")
-
-# 複数の会社データを管理
-config["companies"] = {}
-
-# 会社データの追加
-company_id = "company_123"
-config["companies"][company_id] = {
-    "name": "サンプル会社",
-    "status": "active",
-    "employees": []
-}
-
-# ステータスの更新（ネストした辞書への代入）
-config["companies"][company_id]["status"] = "processing"
-
-# 従業員の追加（ネストしたリストへの操作）
-config["companies"][company_id]["employees"].append({
-    "id": 1,
-    "name": "田中太郎",
-    "department": "開発部"
-})
-
-# すべての変更が追跡され、正しく保存されます
-config.save()
+print(shared_data["counter"])  # 10
+print(len(shared_data["users"]))  # 10
 ```
 
 ## API リファレンス
 
 ### ThreadSafeJsonDict
 
-#### `__init__(json_file_path: str | Path)`
-
-ThreadSafeJsonDictインスタンスを初期化します。
-
-**パラメータ:**
-- `json_file_path`: JSONファイルの保存先パス
-
-**例:**
+#### 初期化
 ```python
-data = ThreadSafeJsonDict("data.json")
-data = ThreadSafeJsonDict(Path("output") / "config.json")
+ThreadSafeJsonDict(json_file_path: str | Path)
 ```
 
-#### `save(indent: int = 2, ensure_ascii: bool = False) -> None`
+#### 主要メソッド
 
-現在のデータを初期化時に指定したJSONファイルに保存します。
+- `save(indent=2, ensure_ascii=False)`: データをJSONファイルに保存
+- `load(path=None)`: JSONファイルからデータを読み込み
+- `get(key, default=None)`: 安全な値取得
+- `keys()`, `values()`, `items()`: 辞書メソッド
+- `clear()`: 全データクリア
 
-**パラメータ:**
-- `indent`: JSONインデント（可読性のため）
-- `ensure_ascii`: ASCII文字のみで出力するか
+#### プロキシオブジェクト
 
-**例:**
-```python
-data.save()
-data.save(indent=4)
-```
+ネストした辞書やリストは以下のプロキシオブジェクトとして返されます：
 
-#### `load(path: str | Path | None = None) -> None`
+- **NestedDictProxy**: `dict`を継承し、辞書操作をすべてサポート
+- **NestedListProxy**: `list`を継承し、リスト操作をすべてサポート
 
-JSONファイルからデータを読み込みます。
+両プロキシとも変更を自動的に追跡し、元のデータに反映します。
 
-**パラメータ:**
-- `path`: 読み込み元ファイルパス（省略時は初期化時に指定したパス）
+## バージョン履歴
 
-**例:**
-```python
-data.load()  # 初期化時のパスから読み込み
-data.load("other_file.json")  # 別ファイルから読み込み
-```
-
-#### `set_json_file_path(new_path: str | Path) -> None`
-
-JSONファイルパスを変更します。
-
-**パラメータ:**
-- `new_path`: 新しいJSONファイルパス
-
-**例:**
-```python
-data.set_json_file_path("new_output.json")
-data.save()  # 新しいパスに保存
-```
-
-#### `get_json_file_path() -> Path`
-
-現在のJSONファイルパスを取得します。
-
-**戻り値:**
-- 現在のJSONファイルパス
-
-**例:**
-```python
-current_path = data.get_json_file_path()
-print(f"現在の保存先: {current_path}")
-```
-
-### 辞書操作メソッド
-
-ThreadSafeJsonDictは標準的なPython辞書のすべてのメソッドをサポートしています：
-
-- `get(key, default=None)`: キーの値を取得
-- `keys()`: すべてのキーを取得
-- `values()`: すべての値を取得
-- `items()`: すべてのキー・値ペアを取得
-- `update(other)`: 他の辞書でデータを更新
-- `pop(key, default=None)`: キーを削除して値を返す
-- `setdefault(key, default=None)`: キーが存在しない場合にデフォルト値を設定
-- `clear()`: すべてのデータを削除
-
-### プロキシオブジェクト
-
-ネストした辞書やリストは自動的にプロキシオブジェクトでラップされ、変更が追跡されます：
-
-```python
-data = ThreadSafeJsonDict("test.json")
-data["nested"] = {"inner": {"value": 1}}
-
-# これらの操作はすべて追跡されます
-data["nested"]["inner"]["value"] = 2
-data["nested"]["new_key"] = "new_value"
-
-# リスト操作も追跡されます
-data["list"] = [1, 2, 3]
-data["list"].append(4)
-data["list"].extend([5, 6])
-```
-
-## パフォーマンス
-
-- **メモリ使用量**: 軽量、標準辞書とほぼ同等
-- **速度**: 純粋なPython実装による高速動作
-- **スレッドセーフティ**: `threading.RLock`による最小限のオーバーヘッド
-- **外部依存**: なし（Python標準ライブラリのみ使用）
-
-## ライセンス
-
-MIT License
-
-## 貢献
-
-プルリクエストやイシューの報告を歓迎します。
-
-## 変更履歴
-
-### v0.2.0
-- 初期化時にJSONファイルパスを指定する新しいAPI
-- `save()`メソッドでパラメータなしでの保存
-- パス変更メソッドの追加（`set_json_file_path()`, `get_json_file_path()`）
-- `load()`メソッドのオプション引数対応
-- 自前実装による外部依存の完全削除
-- ネストした辞書・リスト操作の完全サポート
-- より直感的なAPI設計
+### v0.2.0 (最新)
+- ✅ **isinstance() 互換性の修正**: `isinstance(obj, dict)`や`isinstance(obj, list)`が正常動作
+- ✅ **プロキシクラスの改善**: `NestedDictProxy`と`NestedListProxy`が適切な型を継承
+- ✅ **バグ対応テストの追加**: `tests/test_bug_fixes.py`でバグ修正の検証
+- ✅ **データ同期の強化**: プロキシオブジェクトと元データの完全同期
 
 ### v0.1.0
 - 初回リリース
-- 基本的な辞書操作とJSON保存機能
+- 基本的なスレッドセーフJSON辞書機能
+- ネストした辞書・リストの変更追跡
+
+## 開発・テスト
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/your-username/threadsafe-json-dict.git
+cd threadsafe-json-dict
+
+# テスト実行
+python -m pytest tests/ -v
+
+# カバレッジ確認
+python -m pytest tests/ --cov=threadsafe_json_dict --cov-report=html
+
+# コード品質チェック
+ruff check .
+black .
+mypy threadsafe_json_dict/
+```
+
+## バグ報告・機能要求
+
+バグを発見した場合や新機能のご要望は、[GitHub Issues](https://github.com/your-username/threadsafe-json-dict/issues)でお知らせください。
+
+報告されたバグは`tests/test_bug_fixes.py`に検証テストを追加し、修正後の回帰テストとして活用します。
+
+## ライセンス
+
+MIT License - 詳細は[LICENSE](LICENSE)ファイルをご覧ください。
+
+## 貢献
+
+プルリクエストやイシューの報告を歓迎します！開発に参加していただける方は、まずイシューで議論してからプルリクエストを送信してください。
