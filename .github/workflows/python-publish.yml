@@ -38,10 +38,11 @@ jobs:
         run: |
           python -m pytest tests/ -v --cov=threadsafe_json_dict --cov-report=term-missing
       
-      - name: Check code style
+      - name: Check code style and types
         run: |
           black --check threadsafe_json_dict/ tests/
-          flake8 threadsafe_json_dict/ tests/
+          ruff check threadsafe_json_dict/ tests/
+          mypy threadsafe_json_dict/
 
   deploy:
     needs: test

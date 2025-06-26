@@ -7,7 +7,7 @@ name = "threadsafe-json-dict"
 version = "0.2.0"
 description = "スレッドセーフなJSON保存機能付き辞書（自前実装）"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
@@ -18,7 +18,6 @@ keywords = ["json", "dict", "cache", "threadsafe", "persistent", "storage"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
