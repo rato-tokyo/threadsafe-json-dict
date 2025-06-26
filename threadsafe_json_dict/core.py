@@ -2,42 +2,42 @@
 ThreadSafeJsonDict - 自前実装によるJSON保存機能付き辞書クラス
 """
 
+import copy
 import json
 import threading
-from typing import Any, Union, Dict, List
 from pathlib import Path
-import copy
+from typing import Any, Dict, Union
 
 
 class NestedListProxy:
     """
     ネストしたリストの変更を追跡するプロキシクラス
     """
-    
-    def __init__(self, data: list, parent: 'ThreadSafeJsonDict', root_key: str):
+
+    def __init__(self, data: list, parent: "ThreadSafeJsonDict", root_key: str):
         self._data = data
         self._parent = parent
         self._root_key = root_key
-    
-    def __getitem__(self, index):
+
+    def __getitem__(self, index: int) -> Any:
         value = self._data[index]
         if isinstance(value, dict):
             return NestedDictProxy(value, self._parent, self._root_key)
         elif isinstance(value, list):
             return NestedListProxy(value, self._parent, self._root_key)
         return value
-    
-    def __setitem__(self, index, value):
+
+    def __setitem__(self, index: int, value: Any) -> None:
         self._data[index] = value
         self._parent._mark_dirty()
-    
-    def __delitem__(self, index):
+
+    def __delitem__(self, index: int) -> None:
         del self._data[index]
         self._parent._mark_dirty()
-    
-    def __len__(self):
+
+    def __len__(self) -> int:
         return len(self._data)
-    
+
     def __iter__(self):
         for item in self._data:
             if isinstance(item, dict):
@@ -46,37 +46,37 @@ class NestedListProxy:
                 yield NestedListProxy(item, self._parent, self._root_key)
             else:
                 yield item
-    
-    def __repr__(self):
+
+    def __repr__(self) -> str:
         return f"NestedListProxy({self._data})"
-    
-    def append(self, value):
+
+    def append(self, value: Any) -> None:
         """リストのappend()メソッド"""
         self._data.append(value)
         self._parent._mark_dirty()
-    
-    def extend(self, values):
+
+    def extend(self, values) -> None:
         """リストのextend()メソッド"""
         self._data.extend(values)
         self._parent._mark_dirty()
-    
-    def insert(self, index, value):
+
+    def insert(self, index: int, value: Any) -> None:
         """リストのinsert()メソッド"""
         self._data.insert(index, value)
         self._parent._mark_dirty()
-    
-    def remove(self, value):
+
+    def remove(self, value: Any) -> None:
         """リストのremove()メソッド"""
         self._data.remove(value)
         self._parent._mark_dirty()
-    
-    def pop(self, index=-1):
+
+    def pop(self, index: int = -1) -> Any:
         """リストのpop()メソッド"""
         result = self._data.pop(index)
         self._parent._mark_dirty()
         return result
-    
-    def clear(self):
+
+    def clear(self) -> None:
         """リストのclear()メソッド"""
         self._data.clear()
         self._parent._mark_dirty()
@@ -86,53 +86,53 @@ class NestedDictProxy:
     """
     ネストした辞書の変更を追跡するプロキシクラス
     """
-    
-    def __init__(self, data: dict, parent: 'ThreadSafeJsonDict', root_key: str):
+
+    def __init__(self, data: dict, parent: "ThreadSafeJsonDict", root_key: str):
         self._data = data
         self._parent = parent
         self._root_key = root_key
-    
-    def __getitem__(self, key):
+
+    def __getitem__(self, key: str) -> Any:
         value = self._data[key]
         if isinstance(value, dict):
             return NestedDictProxy(value, self._parent, self._root_key)
         elif isinstance(value, list):
             return NestedListProxy(value, self._parent, self._root_key)
         return value
-    
-    def __setitem__(self, key, value):
+
+    def __setitem__(self, key: str, value: Any) -> None:
         """ネストした辞書への代入"""
         self._data[key] = value
         self._parent._mark_dirty()
-    
-    def __delitem__(self, key):
+
+    def __delitem__(self, key: str) -> None:
         """ネストした辞書からの削除"""
         del self._data[key]
         self._parent._mark_dirty()
-    
-    def __contains__(self, key):
+
+    def __contains__(self, key: str) -> bool:
         return key in self._data
-    
-    def __len__(self):
+
+    def __len__(self) -> int:
         return len(self._data)
-    
+
     def __iter__(self):
         return iter(self._data)
-    
-    def __repr__(self):
+
+    def __repr__(self) -> str:
         return f"NestedDictProxy({self._data})"
-    
-    def get(self, key, default=None):
+
+    def get(self, key: str, default: Any = None) -> Any:
         value = self._data.get(key, default)
         if isinstance(value, dict) and value is not default:
             return NestedDictProxy(value, self._parent, self._root_key)
         elif isinstance(value, list) and value is not default:
             return NestedListProxy(value, self._parent, self._root_key)
         return value
-    
+
     def keys(self):
         return self._data.keys()
-    
+
     def values(self):
         for value in self._data.values():
             if isinstance(value, dict):
@@ -141,7 +141,7 @@ class NestedDictProxy:
                 yield NestedListProxy(value, self._parent, self._root_key)
             else:
                 yield value
-    
+
     def items(self):
         for key, value in self._data.items():
             if isinstance(value, dict):
@@ -150,28 +150,28 @@ class NestedDictProxy:
                 yield key, NestedListProxy(value, self._parent, self._root_key)
             else:
                 yield key, value
-    
-    def update(self, other):
+
+    def update(self, other: Dict[str, Any]) -> None:
         """辞書のupdate()メソッド"""
         self._data.update(other)
         self._parent._mark_dirty()
-    
-    def pop(self, key, *args):
+
+    def pop(self, key: str, *args) -> Any:
         """辞書のpop()メソッド"""
         if len(args) > 1:
             raise TypeError(f"pop expected at most 2 arguments, got {len(args) + 1}")
-        
+
         if len(args) == 0:
             if key not in self._data:
                 raise KeyError(key)
             result = self._data.pop(key)
         else:
             result = self._data.pop(key, args[0])
-        
+
         self._parent._mark_dirty()
         return result
-    
-    def setdefault(self, key, default=None):
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
         """辞書のsetdefault()メソッド"""
         if key not in self._data:
             self._data[key] = default
@@ -193,7 +193,7 @@ class ThreadSafeJsonDict:
     ネストした辞書・リストへの操作も正しく追跡されます。
     """
 
-    def __init__(self, directory: Union[str, Path] = None):
+    def __init__(self, directory: Union[str, Path, None] = None):
         """
         初期化
 
@@ -202,14 +202,14 @@ class ThreadSafeJsonDict:
         """
         # 内部データストレージ
         self._data: Dict[str, Any] = {}
-        
+
         # スレッドセーフティ用のロック
         self._lock = threading.RLock()
-        
+
         # 変更フラグ（将来の拡張用）
         self._dirty = False
 
-    def _mark_dirty(self):
+    def _mark_dirty(self) -> None:
         """変更フラグを設定"""
         self._dirty = True
 
@@ -218,7 +218,7 @@ class ThreadSafeJsonDict:
         with self._lock:
             if key not in self._data:
                 raise KeyError(key)
-            
+
             value = self._data[key]
             if isinstance(value, dict):
                 return NestedDictProxy(value, self, key)
@@ -275,24 +275,24 @@ class ThreadSafeJsonDict:
             ensure_ascii: ASCII文字のみで出力するか
         """
         path = Path(path)
-        
+
         with self._lock:
             # 内部データを取得
             data_to_save = self._to_dict()
-            
+
             # ディレクトリが存在しない場合は作成
             path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # JSONファイルに保存
-            with open(path, 'w', encoding='utf-8') as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump(
                     data_to_save,
                     f,
                     indent=indent,
                     ensure_ascii=ensure_ascii,
-                    separators=(',', ': ')
+                    separators=(",", ": "),
                 )
-        
+
         # 保存完了後に変更フラグをリセット
         self._dirty = False
 
@@ -308,16 +308,16 @@ class ThreadSafeJsonDict:
             ValueError: 無効なJSON形式の場合
         """
         path = Path(path)
-        
+
         if not path.exists():
             raise FileNotFoundError(f"ファイルが見つかりません: {path}")
-        
+
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding="utf-8") as f:
                 loaded_data = json.load(f)
         except json.JSONDecodeError as e:
             raise ValueError(f"無効なJSON形式です: {e}")
-        
+
         with self._lock:
             # 既存データをクリアして新しいデータを設定
             self._data.clear()
@@ -325,7 +325,7 @@ class ThreadSafeJsonDict:
                 self._data.update(loaded_data)
             else:
                 raise ValueError("JSONのルートは辞書である必要があります")
-        
+
         self._dirty = False
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -335,7 +335,7 @@ class ThreadSafeJsonDict:
         with self._lock:
             if key not in self._data:
                 return default
-            
+
             value = self._data[key]
             if isinstance(value, dict):
                 return NestedDictProxy(value, self, key)
@@ -392,5 +392,5 @@ class ThreadSafeJsonDict:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
