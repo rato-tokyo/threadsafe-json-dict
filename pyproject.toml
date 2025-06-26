@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "threadsafe-json-dict"
-version = "0.1.1"
-description = "diskcacheを使用したスレッドセーフなJSON保存機能付き辞書"
+version = "0.2.0"
+description = "スレッドセーフなJSON保存機能付き辞書（自前実装）"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -31,9 +31,7 @@ classifiers = [
     "Topic :: System :: Archiving",
 ]
 requires-python = ">=3.8"
-dependencies = [
-    "diskcache>=5.0.0",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [

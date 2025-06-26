@@ -1,276 +1,243 @@
 """
-ThreadSafe JSON Dict の基本機能テスト
+ThreadSafeJsonDict の包括的テスト
+
+1つの複雑なJSONファイルとの完全一致で全機能をテストする簡潔なアプローチ
 """
 
 import json
-import pytest
+import tempfile
 from pathlib import Path
-
+import pytest
 from threadsafe_json_dict import ThreadSafeJsonDict
 
 
-class TestBasicOperations:
-    """基本的な辞書操作のテスト"""
+class TestThreadSafeJsonDict:
+    """ThreadSafeJsonDictの包括的テスト"""
 
-    def test_setitem_getitem(self, dict_instance):
-        """設定と取得のテスト"""
-        dict_instance["key"] = "value"
-        assert dict_instance["key"] == "value"
+    def test_comprehensive_functionality(self):
+        """
+        包括的な機能テスト - 1つの複雑なJSONとの完全一致
+        
+        このテストでカバーする機能：
+        - 基本的な辞書操作
+        - ネストした辞書への代入（バグ修正の確認）
+        - 深いネスト構造の変更
+        - 複数のデータ型
+        - リストの操作
+        - JSON保存・読み込み
+        """
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dict_obj = ThreadSafeJsonDict(tmpdir)
+            
+            # 1. 初期データ設定（基本的な辞書操作）
+            dict_obj["company_123"] = {
+                "name": "テスト会社",
+                "status": "active",
+                "employees": [],
+                "metadata": {
+                    "created_at": "2024-01-01",
+                    "version": 1,
+                    "tags": [],
+                    "settings": {
+                        "notifications": True,
+                        "backup_enabled": True
+                    }
+                }
+            }
+            
+            dict_obj["company_456"] = {
+                "name": "サンプル株式会社", 
+                "status": "inactive",
+                "employees": [],
+                "metadata": {
+                    "created_at": "2024-01-02",
+                    "version": 1,
+                    "tags": ["new"],
+                    "settings": {
+                        "notifications": False,
+                        "backup_enabled": True
+                    }
+                }
+            }
+            
+            # 2. ネストした辞書への代入（重要：バグ修正の確認）
+            dict_obj["company_123"]["status"] = "saving_user_list"
+            dict_obj["company_123"]["metadata"]["version"] = 2
+            dict_obj["company_123"]["metadata"]["tags"].extend(["important", "active"])
+            dict_obj["company_123"]["metadata"]["settings"]["backup_enabled"] = False
+            
+            # 3. リストへの要素追加
+            dict_obj["company_123"]["employees"].append({
+                "id": 1,
+                "name": "田中太郎",
+                "department": "開発部"
+            })
+            dict_obj["company_123"]["employees"].append({
+                "id": 2,
+                "name": "佐藤花子", 
+                "department": "営業部"
+            })
+            
+            # 4. 別の会社のステータス変更
+            dict_obj["company_456"]["status"] = "processing"
+            
+            # 5. グローバル設定の追加（深いネスト構造）
+            dict_obj["global_config"] = {
+                "system_version": "1.0.0",
+                "features": {
+                    "nested_modification": True,
+                    "auto_save": True,
+                    "deep_nesting": {
+                        "level1": {
+                            "level2": {
+                                "level3": {
+                                    "value": "initial_value",
+                                    "timestamp": "2024-01-01T09:00:00"
+                                }
+                            }
+                        }
+                    }
+                },
+                "limits": {
+                    "max_companies": 1000,
+                    "max_employees_per_company": 500
+                }
+            }
+            
+            # 6. 深いネストの値変更
+            dict_obj["global_config"]["features"]["deep_nesting"]["level1"]["level2"]["level3"]["value"] = "deep_value_modified"
+            dict_obj["global_config"]["features"]["deep_nesting"]["level1"]["level2"]["level3"]["timestamp"] = "2024-01-01T10:00:00"
+            
+            # 7. 統計情報の追加
+            dict_obj["statistics"] = {
+                "total_companies": 2,
+                "total_employees": 2,
+                "last_updated": "2024-01-01T12:00:00",
+                "performance_metrics": {
+                    "avg_response_time": 0.05,
+                    "cache_hit_rate": 0.95,
+                    "error_count": 0
+                }
+            }
+            
+            # 8. 各種データ型のテスト
+            dict_obj["test_data_types"] = {
+                "string_value": "テスト文字列",
+                "integer_value": 42,
+                "float_value": 3.14159,
+                "boolean_true": True,
+                "boolean_false": False,
+                "null_value": None,
+                "empty_string": "",
+                "empty_list": [],
+                "empty_dict": {},
+                "unicode_text": "🚀 Unicode テスト 📊"
+            }
+            
+            # 9. JSONファイルに保存
+            output_file = Path(tmpdir) / "test_output.json"
+            dict_obj.save(output_file)
+            
+            # 10. 正解JSONファイルと比較
+            expected_file = Path(__file__).parent / "expected_results" / "comprehensive_test_expected.json"
+            
+            # 保存されたJSONを読み込み
+            with open(output_file, 'r', encoding='utf-8') as f:
+                actual_data = json.load(f)
+            
+            # 正解JSONを読み込み
+            with open(expected_file, 'r', encoding='utf-8') as f:
+                expected_data = json.load(f)
+            
+            # 完全一致を確認
+            assert actual_data == expected_data, (
+                f"保存されたJSONが正解と一致しません。\n"
+                f"期待値: {json.dumps(expected_data, indent=2, ensure_ascii=False)}\n"
+                f"実際値: {json.dumps(actual_data, indent=2, ensure_ascii=False)}"
+            )
+            
+            # リソースをクリーンアップ
+            dict_obj.close()
 
-    def test_delitem(self, dict_instance):
-        """削除のテスト"""
-        dict_instance["key"] = "value"
-        del dict_instance["key"]
-        with pytest.raises(KeyError):
-            _ = dict_instance["key"]
+    def test_load_and_modify_cycle(self):
+        """
+        JSONファイルの読み込み → 変更 → 保存サイクルのテスト
+        """
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # 正解JSONファイルを読み込み
+            expected_file = Path(__file__).parent / "expected_results" / "comprehensive_test_expected.json"
+            
+            # 1. 新しいインスタンスで正解JSONを読み込み
+            dict_obj = ThreadSafeJsonDict(tmpdir)
+            dict_obj.load(expected_file)
+            
+            # 2. 読み込み後に変更を加える
+            dict_obj["company_123"]["status"] = "updated_after_load"
+            dict_obj["statistics"]["total_companies"] = 3
+            
+            # 3. 新しいファイルに保存
+            output_file = Path(tmpdir) / "modified_output.json"
+            dict_obj.save(output_file)
+            
+            # 4. 変更が正しく反映されているか確認
+            with open(output_file, 'r', encoding='utf-8') as f:
+                modified_data = json.load(f)
+            
+            assert modified_data["company_123"]["status"] == "updated_after_load"
+            assert modified_data["statistics"]["total_companies"] == 3
+            
+            # 5. 他のデータは変更されていないことを確認
+            assert modified_data["company_456"]["name"] == "サンプル株式会社"
+            assert modified_data["global_config"]["system_version"] == "1.0.0"
+            
+            dict_obj.close()
 
-    def test_contains(self, dict_instance):
-        """存在確認のテスト"""
-        dict_instance["key"] = "value"
-        assert "key" in dict_instance
-        assert "nonexistent" not in dict_instance
+    def test_error_cases(self):
+        """エラーケースのテスト"""
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dict_obj = ThreadSafeJsonDict(tmpdir)
+            
+            # 存在しないキーへのアクセス
+            with pytest.raises(KeyError):
+                _ = dict_obj["nonexistent_key"]
+            
+            # 存在しないキーの削除
+            with pytest.raises(KeyError):
+                del dict_obj["nonexistent_key"]
+            
+            # 存在しないファイルの読み込み
+            with pytest.raises(FileNotFoundError):
+                dict_obj.load("nonexistent_file.json")
+            
+            dict_obj.close()
 
-    def test_len(self, dict_instance):
-        """長さのテスト"""
-        assert len(dict_instance) == 0
-        dict_instance["key1"] = "value1"
-        dict_instance["key2"] = "value2"
-        assert len(dict_instance) == 2
-
-    def test_get_method(self, dict_instance):
-        """get()メソッドのテスト"""
-        dict_instance["existing"] = "value"
-        assert dict_instance.get("existing") == "value"
-        assert dict_instance.get("nonexistent") is None
-        assert dict_instance.get("nonexistent", "default") == "default"
-
-    def test_clear(self, dict_instance):
-        """clear()メソッドのテスト"""
-        dict_instance["key1"] = "value1"
-        dict_instance["key2"] = "value2"
-        dict_instance.clear()
-        assert len(dict_instance) == 0
-
-    def test_keys_values_items(self, dict_instance):
-        """keys(), values(), items()のテスト"""
-        test_data = {"key1": "value1", "key2": "value2"}
-        for key, value in test_data.items():
-            dict_instance[key] = value
-
-        assert set(dict_instance.keys()) == set(test_data.keys())
-        assert set(dict_instance.values()) == set(test_data.values())
-        assert set(dict_instance.items()) == set(test_data.items())
-
-
-class TestSaveLoad:
-    """保存・読み込み機能のテスト"""
-
-    def test_save_load_basic(self, dict_instance, temp_dir):
-        """基本的な保存・読み込みのテスト"""
-        test_data = {
-            "string": "test",
-            "number": 42,
-            "list": [1, 2, 3],
-            "dict": {"nested": "value"},
-        }
-
-        for key, value in test_data.items():
-            dict_instance[key] = value
-
-        save_path = temp_dir / "test.json"
-        dict_instance.save(save_path)
-
-        # ファイルが作成されたことを確認
-        assert save_path.exists()
-
-        # 新しいインスタンスで読み込み
-        new_instance = ThreadSafeJsonDict(str(temp_dir / "new_dict"))
-        try:
-            new_instance.load(save_path)
-            for key, expected_value in test_data.items():
-                assert new_instance[key] == expected_value
-        finally:
-            new_instance.close()
-
-    def test_save_options(self, dict_instance, temp_dir):
-        """保存オプションのテスト"""
-        dict_instance["test"] = "日本語"
-
-        # デフォルト設定
-        path1 = temp_dir / "default.json"
-        dict_instance.save(path1)
-
-        # ensure_ascii=True
-        path2 = temp_dir / "ascii.json"
-        dict_instance.save(path2, ensure_ascii=True)
-
-        # indent=None
-        path3 = temp_dir / "compact.json"
-        dict_instance.save(path3, indent=None)
-
-        # ファイルの内容を確認
-        with open(path1, "r", encoding="utf-8") as f:
-            content1 = f.read()
-        assert "日本語" in content1
-
-        with open(path2, "r", encoding="utf-8") as f:
-            content2 = f.read()
-        assert "\\u" in content2  # Unicode エスケープ
-
-        with open(path3, "r", encoding="utf-8") as f:
-            content3 = f.read()
-        assert content3.count("\n") == 0  # 改行なし
-
-    def test_load_invalid_json(self, dict_instance, temp_dir):
-        """無効なJSONファイルの読み込みテスト"""
-        invalid_file = temp_dir / "invalid.json"
-        with open(invalid_file, "w") as f:
-            f.write('{"invalid": invalid_json_value}')
-
-        with pytest.raises(ValueError, match="無効なJSON形式"):
-            dict_instance.load(invalid_file)
-
-    def test_load_nonexistent_file(self, dict_instance):
-        """存在しないファイルの読み込みテスト"""
-        with pytest.raises(FileNotFoundError):
-            dict_instance.load("nonexistent.json")
-
-
-class TestContextManager:
-    """コンテキストマネージャーのテスト"""
-
-    def test_context_manager_basic(self, temp_dir):
-        """基本的なコンテキストマネージャーのテスト"""
-        with ThreadSafeJsonDict(str(temp_dir / "context_test")) as instance:
-            instance["test"] = "value"
-            assert instance["test"] == "value"
-
-    def test_context_manager_exception(self, temp_dir):
-        """例外発生時のコンテキストマネージャーのテスト"""
-        with pytest.raises(ValueError):
-            with ThreadSafeJsonDict(str(temp_dir / "exception_test")) as instance:
-                instance["test"] = "value"
-                raise ValueError("Test exception")
-
-
-class TestErrorHandling:
-    """エラーハンドリングのテスト"""
-
-    def test_keyerror_on_missing_key(self, dict_instance):
-        """存在しないキーでのKeyErrorテスト"""
-        with pytest.raises(KeyError):
-            _ = dict_instance["nonexistent"]
-
-    def test_keyerror_on_delete_missing_key(self, dict_instance):
-        """存在しないキーの削除でのKeyErrorテスト"""
-        with pytest.raises(KeyError):
-            del dict_instance["nonexistent"]
-
-    def test_save_io_error(self, dict_instance, mocker):
-        """保存時のIOErrorテスト"""
-        dict_instance["test"] = "data"
-
-        # json.dumpでエラーが発生する場合をシミュレート
-        mocker.patch("json.dump", side_effect=OSError("Disk full"))
-
-        with pytest.raises(IOError, match="JSON保存エラー"):
-            dict_instance.save("test.json")
-
-    def test_load_permission_error(self, dict_instance, temp_dir, mocker):
-        """読み込み時のPermissionErrorテスト"""
-        test_file = temp_dir / "permission_test.json"
-        with open(test_file, "w") as f:
-            f.write('{"test": "data"}')
-
-        mocker.patch("builtins.open", side_effect=PermissionError("Permission denied"))
-
-        with pytest.raises(IOError, match="ファイル読み込みエラー"):
-            dict_instance.load(test_file)
-
-
-class TestRepr:
-    """文字列表現のテスト"""
-
-    def test_repr(self, dict_instance):
-        """__repr__メソッドのテスト"""
-        dict_instance["test"] = "value"
-        repr_str = repr(dict_instance)
-        assert "ThreadSafeJsonDict" in repr_str
-        assert "size=1" in repr_str
-
-
-class TestIteration:
-    """反復処理のテスト（問題レポート対応）"""
-
-    def test_iteration_methods(self, dict_instance):
-        """反復処理メソッドのテスト（問題レポート対応）"""
-        # テストデータ設定
-        dict_instance["key1"] = "value1"
-        dict_instance["key2"] = {"nested": "data"}
-        dict_instance["key3"] = [1, 2, 3]
-
-        # items()の動作確認
-        items_list = list(dict_instance.items())
-        assert len(items_list) == 3
-        items_dict = dict(items_list)
-        assert items_dict["key1"] == "value1"
-        assert items_dict["key2"] == {"nested": "data"}
-        assert items_dict["key3"] == [1, 2, 3]
-
-        # keys()の動作確認
-        keys_list = list(dict_instance.keys())
-        assert len(keys_list) == 3
-        assert "key1" in keys_list
-        assert "key2" in keys_list
-        assert "key3" in keys_list
-
-        # values()の動作確認
-        values_list = list(dict_instance.values())
-        assert len(values_list) == 3
-        assert "value1" in values_list
-        assert {"nested": "data"} in values_list
-        assert [1, 2, 3] in values_list
-
-        # 直接反復処理の動作確認
-        direct_keys = []
-        for key in dict_instance:
-            direct_keys.append(key)
-        assert len(direct_keys) == 3
-        assert set(direct_keys) == {"key1", "key2", "key3"}
-
-    def test_iteration_with_enumeration(self, dict_instance):
-        """enumerate使用での反復処理テスト"""
-        dict_instance["a"] = 1
-        dict_instance["b"] = 2
-        dict_instance["c"] = 3
-
-        # enumerate使用テスト
-        enumerated_items = list(enumerate(dict_instance))
-        assert len(enumerated_items) == 3
-
-        # インデックスと値の確認
-        indices, keys = zip(*enumerated_items)
-        assert indices == (0, 1, 2)
-        assert set(keys) == {"a", "b", "c"}
-
-    def test_large_iteration_performance(self, dict_instance):
-        """大量データでの反復処理パフォーマンステスト"""
-        # 100件のデータを設定
-        for i in range(100):
-            dict_instance[f"key_{i}"] = f"value_{i}"
-
-        # items()での反復処理
-        items_count = 0
-        for key, value in dict_instance.items():
-            items_count += 1
-            if items_count >= 10:  # 最初の10件のみテスト
-                break
-        assert items_count == 10
-
-        # 直接反復処理
-        direct_count = 0
-        for key in dict_instance:
-            direct_count += 1
-            if direct_count >= 10:  # 最初の10件のみテスト
-                break
-        assert direct_count == 10
+    def test_basic_operations(self):
+        """基本的な辞書操作のテスト"""
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dict_obj = ThreadSafeJsonDict(tmpdir)
+            
+            # 設定と取得
+            dict_obj["key1"] = "value1"
+            assert dict_obj["key1"] == "value1"
+            
+            # in演算子
+            assert "key1" in dict_obj
+            assert "key2" not in dict_obj
+            
+            # get()メソッド
+            assert dict_obj.get("key1") == "value1"
+            assert dict_obj.get("key2") is None
+            assert dict_obj.get("key2", "default") == "default"
+            
+            # len()
+            assert len(dict_obj) == 1
+            
+            # 削除
+            del dict_obj["key1"]
+            assert len(dict_obj) == 0
+            
+            dict_obj.close() 

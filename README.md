@@ -1,27 +1,28 @@
 # ThreadSafe JSON Dict
 
-diskcacheライブラリを使用したスレッドセーフなJSON保存機能付き辞書クラスです。
+軽量で高速なスレッドセーフJSON保存機能付き辞書クラスです。外部依存なしの純粋なPython実装。
 
 ## 特徴
 
 ### なぜ必要なのか？
-既存のPython辞書やJSONファイル操作では、**スレッド間の競合状態**や**プロセス間でのデータ共有**が困難です。Redis等の外部ツールは設定が複雑で、軽量な用途には過剰です。
+既存のPython辞書やJSONファイル操作では、**スレッド間の競合状態**や**ネストした辞書への変更追跡**が困難です。Redis等の外部ツールは設定が複雑で、軽量な用途には過剰です。
 
 ### このライブラリの解決策
-✅ **ゼロ設定**: 外部サーバー不要、`pip install`だけで使用開始  
+✅ **ゼロ依存**: 外部ライブラリ不要、純粋なPython実装  
 ✅ **Pythonic API**: 標準辞書と完全互換のインターフェース  
-✅ **マルチプロセス対応**: SQLiteベースの堅牢なプロセス間共有  
+✅ **ネスト操作対応**: 深いネスト構造への変更も正しく追跡  
 ✅ **JSON互換性**: 標準的なJSON形式での入出力  
-✅ **軽量**: 単一の依存関係のみ、最小限のオーバーヘッド  
+✅ **軽量・高速**: 外部依存なし、メモリ内操作による高速化  
+✅ **スレッドセーフ**: `threading.RLock`による安全な並行アクセス  
 
-**複雑な設定なしに、辞書ライクな操作でスレッドセーフ・プロセスセーフなデータ管理を実現。**
+**複雑な設定なしに、辞書ライクな操作でスレッドセーフなデータ管理を実現。**
 
 ### 主な機能
 - **辞書ライクなインターフェース**: 通常のPython辞書と同じように使用可能
+- **ネスト操作の追跡**: `dict[key1][key2] = value`やリスト操作も正しく動作
 - **JSON保存機能**: `save(path)`メソッドでJSON形式での保存
 - **スレッドセーフ**: 複数スレッドからの同時アクセスに対応
-- **プロセスセーフ**: 複数プロセス間での安全なデータ共有
-- **SQLiteベース**: diskcacheによる高信頼性のデータ永続化
+- **軽量実装**: 外部依存なし、シンプルで理解しやすいコード
 - **コンテキストマネージャー**: `with`文でのリソース管理
 
 ## インストール
@@ -47,8 +48,8 @@ pip install -e .
 ```python
 from threadsafe_json_dict import ThreadSafeJsonDict
 
-# 辞書を作成（diskcache内部ファイル保存先ディレクトリを指定）
-data = ThreadSafeJsonDict("my_data_cache")
+# 辞書を作成
+data = ThreadSafeJsonDict()
 
 # 辞書ライクな操作
 data["user_info"] = {
@@ -68,9 +69,35 @@ print(len(data))          # 2
 
 # JSON形式で保存
 data.save("output/data.json")
+```
 
-# リソースをクリーンアップ
-data.close()
+### ネストした辞書・リストの操作
+
+```python
+from threadsafe_json_dict import ThreadSafeJsonDict
+
+data = ThreadSafeJsonDict()
+
+# 複雑なネスト構造
+data["company"] = {
+    "name": "テスト会社",
+    "employees": [],
+    "metadata": {
+        "settings": {
+            "notifications": True
+        }
+    }
+}
+
+# ネストした辞書への代入（重要：正しく追跡されます）
+data["company"]["metadata"]["settings"]["notifications"] = False
+
+# リストへの操作
+data["company"]["employees"].append({"name": "田中太郎", "id": 1})
+data["company"]["employees"].append({"name": "佐藤花子", "id": 2})
+
+# 変更はすべて追跡され、保存時に反映されます
+data.save("company_data.json")
 ```
 
 ### コンテキストマネージャーとしての使用
@@ -78,7 +105,7 @@ data.close()
 ```python
 from threadsafe_json_dict import ThreadSafeJsonDict
 
-with ThreadSafeJsonDict("my_data_cache") as data:
+with ThreadSafeJsonDict() as data:
     data["key1"] = "value1"
     data["key2"] = {"nested": "data"}
     data.save("output.json")
@@ -91,14 +118,16 @@ with ThreadSafeJsonDict("my_data_cache") as data:
 from threadsafe_json_dict import ThreadSafeJsonDict
 
 # 既存のJSONファイルから読み込み
-data = ThreadSafeJsonDict("loaded_data_cache")
+data = ThreadSafeJsonDict()
 data.load("input.json")
 
 # データの確認
 for key, value in data.items():
     print(f"{key}: {value}")
 
-data.close()
+# 読み込み後の変更も正しく追跡されます
+data["new_key"] = "new_value"
+data.save("modified_data.json")
 ```
 
 ### スレッドセーフな並行処理
@@ -107,7 +136,7 @@ data.close()
 import threading
 from threadsafe_json_dict import ThreadSafeJsonDict
 
-data = ThreadSafeJsonDict("concurrent_data_cache")
+data = ThreadSafeJsonDict()
 
 def worker_thread(thread_id):
     for i in range(10):
@@ -127,32 +156,80 @@ for t in threads:
     t.join()
 
 print(f"最終データ数: {len(data)}")
-data.close()
+```
+
+### 実際のユースケース例
+
+```python
+from threadsafe_json_dict import ThreadSafeJsonDict
+
+# アプリケーション設定の管理
+config = ThreadSafeJsonDict()
+
+# 複数の会社データを管理
+config["companies"] = {}
+
+# 会社データの追加
+company_id = "company_123"
+config["companies"][company_id] = {
+    "name": "サンプル会社",
+    "status": "active",
+    "employees": []
+}
+
+# ステータスの更新（ネストした辞書への代入）
+config["companies"][company_id]["status"] = "processing"
+
+# 従業員の追加（ネストしたリストへの操作）
+config["companies"][company_id]["employees"].append({
+    "id": 1,
+    "name": "田中太郎",
+    "department": "開発部"
+})
+
+# すべての変更が追跡され、正しく保存されます
+config.save("companies_config.json")
 ```
 
 ## API リファレンス
 
 ### ThreadSafeJsonDict
 
-#### `__init__(directory, size_limit=2**30)`
+#### `__init__(directory=None)`
 
-- `directory`: diskcache内部ファイル（SQLiteデータベース等）の保存先ディレクトリのパス（**必須**）
-  - 相対パス・絶対パス両方に対応
-  - 指定したディレクトリに`cache.db`等のファイルが作成される
-- `size_limit`: キャッシュサイズの上限（バイト、デフォルト: 1GB）
+- `directory`: 互換性のために残されていますが、自前実装では使用されません
 
 #### 辞書操作メソッド
 
-- `dict[key]`: 値の取得
+- `dict[key]`: 値の取得（ネストした辞書・リストはプロキシオブジェクトとして返される）
 - `dict[key] = value`: 値の設定  
 - `del dict[key]`: 値の削除
 - `key in dict`: キーの存在確認
 - `len(dict)`: 要素数の取得
 - `get(key, default=None)`: デフォルト値付きの取得
 - `keys()`: キーのイテレータ
-- `values()`: 値のイテレータ
-- `items()`: キー・値ペアのイテレータ
+- `values()`: 値のイテレータ（プロキシオブジェクト経由）
+- `items()`: キー・値ペアのイテレータ（プロキシオブジェクト経由）
 - `clear()`: すべてのデータを削除
+
+#### ネストオブジェクトの操作
+
+ネストした辞書・リストは自動的にプロキシオブジェクト（`NestedDictProxy`、`NestedListProxy`）として返され、以下の操作が追跡されます：
+
+**辞書操作**:
+- `nested_dict[key] = value`: 代入
+- `del nested_dict[key]`: 削除
+- `nested_dict.update(other)`: 更新
+- `nested_dict.pop(key)`: 取得と削除
+- `nested_dict.setdefault(key, default)`: デフォルト値設定
+
+**リスト操作**:
+- `nested_list.append(item)`: 要素追加
+- `nested_list.extend(items)`: 複数要素追加
+- `nested_list.insert(index, item)`: 指定位置に挿入
+- `nested_list.remove(item)`: 要素削除
+- `nested_list.pop(index)`: 指定位置の要素取得と削除
+- `nested_list[index] = value`: インデックス代入
 
 #### ファイル操作メソッド
 
@@ -161,13 +238,27 @@ data.close()
 
 #### リソース管理
 
-- `close()`: リソースを明示的にクローズ
+- `close()`: リソースクリーンアップ（自前実装では何もしません）
 - `__enter__()` / `__exit__()`: コンテキストマネージャーサポート
+
+## バージョン履歴
+
+### v0.2.0 (最新)
+- **重要**: diskcacheから自前実装に完全移行
+- ✅ 外部依存を完全削除（`dependencies = []`）
+- ✅ ネストしたリスト操作のサポート追加
+- ✅ パフォーマンス向上（メモリ内操作）
+- ✅ Windowsでのファイルロック問題を解消
+- ✅ より直感的で理解しやすいコード
+
+### v0.1.x
+- diskcacheベースの初期実装
+- ネストした辞書への代入バグが存在
 
 ## 依存関係
 
-- Python 3.7+
-- diskcache >= 5.0.0
+- Python 3.8+
+- **外部依存なし** (Pure Python実装)
 
 ## ライセンス
 
@@ -185,8 +276,6 @@ pip install -e ".[dev]"
 
 ### テストの実行
 
-pytestを使用したシンプルで効率的なテストスイート：
-
 ```bash
 # 基本テストの実行
 python -m pytest
@@ -198,32 +287,25 @@ python -m pytest --cov=threadsafe_json_dict --cov-report=term-missing
 python -m pytest -v
 ```
 
-### テスト設計思想
+### テスト構造
 
-- **diskcacheライブラリ自体は信頼できるライブラリとして扱い**、独自実装部分のみテスト
-- **pytestとpytest-mock**を活用してシンプルで保守性の高いテストコード
-- **モック使用**によるエラーシミュレーションで堅牢性を確保
+シンプルで効率的なテスト設計：
+- `tests/test_basic.py`: 4つの包括的テスト
+- `tests/expected_results/comprehensive_test_expected.json`: 正解JSON
+- JSONファイルとの完全一致による品質保証
 
-### テストカバレッジ
+## トラブルシューティング
 
-現在のテストカバレッジ: **98%**
+### よくある質問
 
-- **18のテストケース**で核心機能をカバー
-- 基本機能、エラーハンドリング、コンテキストマネージャーを含む
-- 過度に複雑なテストを避け、実用性を重視した設計
+**Q: ネストした辞書への代入が反映されません**  
+A: v0.2.0で修正済みです。`dict[key1][key2] = value`形式の操作が正しく動作します。
 
-### テスト内容
+**Q: リストの操作が保存されません**  
+A: v0.2.0で`NestedListProxy`を追加し、`append()`, `extend()`等の操作が正しく追跡されます。
 
-✅ **基本的な辞書操作** - get/set/delete/len/keys/values/items  
-✅ **JSON保存・読み込み機能** - 各種オプション、エラーハンドリング  
-✅ **エラーハンドリング** - KeyError、IOError、無効JSON等  
-✅ **コンテキストマネージャー** - with文での正常・異常系  
-✅ **モック使用エラーシミュレーション** - ファイルアクセスエラー等
+**Q: マルチプロセス対応はありますか？**  
+A: 現在の自前実装はスレッドセーフですが、プロセス間共有は対応していません。必要に応じて将来のバージョンで検討します。
 
-### コードフォーマット
-
-```bash
-black threadsafe_json_dict/
-flake8 threadsafe_json_dict/
-mypy threadsafe_json_dict/
-```
+**Q: パフォーマンスはどうですか？**  
+A: diskcacheのオーバーヘッドを排除し、メモリ内操作により大幅に高速化されました。
